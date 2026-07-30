@@ -1,0 +1,169 @@
+import { encodeHeader, pad512 } from './tar.js';
+import { resolveConfig } from './config.js';
+import {
+  listObjects,
+  listObjectsPaged,
+  uploadBuffer,
+  composeAll,
+} from './gcs.js';
+import { ensureBasePads, ensurePad } from './pad.js';
+
+export { TarGcsError, ErrCode } from './errors.js';
+
+/**
+ * @param {number} [len]
+ * @returns {string}
+ */
+function runToken(len = 6) {
+  const rnd = Math.random().toString(36).slice(2, 2 + len);
+  const ts = Date.now().toString(36).slice(-4);
+  return `${rnd}${ts}`;
+}
+
+/**
+ * @typedef {import('./config.js').TarGcsConfig} TarGcsConfig
+ * @typedef {import('./gcs.js').GcsStorage} GcsStorage
+ * @typedef {import('./gcs.js').GcsObjectInfo} GcsObjectInfo
+ */
+
+/**
+ * Return metadata for a composed tar.
+ *
+ * @param {import('./gcs.js').GcsBucket} bucket
+ * @param {string} key
+ * @returns {Promise<{ key: string, size: string, crc32c: string }>}
+ */
+async function resultMeta(bucket, key) {
+  const [metadata] = await bucket.file(key).getMetadata();
+  return {
+    key,
+    size: String(metadata.size ?? ''),
+    crc32c: metadata.crc32c ?? '',
+  };
+}
+
+/**
+ * @param {object} opts
+ * @param {import('./gcs.js').GcsBucket} opts.bucket
+ * @param {TarGcsConfig} opts.cfg
+ * @param {GcsObjectInfo[]} opts.files
+ * @param {string} opts.workBase
+ * @returns {Promise<string[]>} compose source keys for this page
+ */
+async function processPage({ bucket, cfg, files, workBase }) {
+  /** @type {string[]} */
+  const sources = [];
+
+  for (const f of files) {
+    const hdrKey = `${workBase}headers/${f.name}`;
+    const hdr = encodeHeader({ name: f.name, size: f.size, mtime: f.updated });
+    await uploadBuffer(bucket, hdrKey, hdr);
+    sources.push(hdrKey);
+
+    sources.push(f.name);
+
+    const padLen = (pad512(f.size) - f.size) || 0;
+    const padKey = await ensurePad(bucket, cfg.padPrefix, padLen);
+    if (padKey) {
+      sources.push(padKey);
+    }
+  }
+
+  return sources;
+}
+
+/**
+ * @param {import('./gcs.js').GcsBucket} bucket
+ * @param {string} workBase
+ * @returns {Promise<void>}
+ */
+async function cleanup(bucket, workBase) {
+  try {
+    await bucket.deleteFiles({ prefix: workBase });
+  } catch {
+    // best-effort — orphaned objects get cleaned by TTL
+  }
+}
+
+/**
+ * Create a tar archive from GCS objects using server-side compose.
+ *
+ * Uploads only small header parts — pads are pre-cached from
+ * power-of-2 building blocks and reused across runs.
+ *
+ * @param {TarGcsConfig & { storage: GcsStorage }} opts
+ * @returns {Promise<{ key: string, size: string, crc32c: string }>}
+ *
+ * @throws {TarGcsError}  on invalid config
+ * @throws {AggregateError}  when compose batching fails
+ * @throws GCS API errors pass through unwrapped
+ */
+export async function createTar(opts) {
+  const cfg = resolveConfig(opts);
+  const bucket = opts.storage.bucket(cfg.bucket);
+  const token = runToken();
+  const workBase = `${cfg.workPrefix}${token}/`;
+
+  try {
+    await ensureBasePads(bucket, cfg.padPrefix);
+
+    if (cfg.lowMemory) {
+      return await createTarLowMem(bucket, cfg, workBase);
+    }
+
+    const files = await listObjects(bucket, cfg.prefix);
+
+    if (files.length === 0) {
+      await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024));
+      return await resultMeta(bucket, cfg.targetKey);
+    }
+
+    const composeSources = await processPage({ bucket, cfg, files, workBase });
+    composeSources.push(`${cfg.padPrefix}512`);
+    composeSources.push(`${cfg.padPrefix}512`);
+
+    await composeAll(bucket, composeSources, cfg.targetKey, `${workBase}int/`);
+    return await resultMeta(bucket, cfg.targetKey);
+  } finally {
+    await cleanup(bucket, workBase);
+  }
+}
+
+/**
+ * Low-memory path: process files page by page, composing each
+ * page into an intermediate segment, then stitch segments together.
+ *
+ * @param {import('./gcs.js').GcsBucket} bucket
+ * @param {TarGcsConfig} cfg
+ * @param {string} workBase
+ * @returns {Promise<{ key: string, size: string, crc32c: string }>}
+ */
+async function createTarLowMem(bucket, cfg, workBase) {
+  /** @type {string[]} */
+  const intermediates = [];
+  let fileCount = 0;
+
+  try {
+    for await (const page of listObjectsPaged(bucket, cfg.prefix)) {
+      fileCount += page.length;
+
+      const sources = await processPage({ bucket, cfg, files: page, workBase });
+      const segKey = `${workBase}seg-${String(intermediates.length).padStart(5, '0')}`;
+      await bucket.combine(sources, segKey);
+      intermediates.push(segKey);
+    }
+
+    if (fileCount === 0) {
+      await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024));
+      return await resultMeta(bucket, cfg.targetKey);
+    }
+
+    intermediates.push(`${cfg.padPrefix}512`);
+    intermediates.push(`${cfg.padPrefix}512`);
+
+    await composeAll(bucket, intermediates, cfg.targetKey, `${workBase}int/`);
+    return await resultMeta(bucket, cfg.targetKey);
+  } finally {
+    await cleanup(bucket, workBase);
+  }
+}
