@@ -1,0 +1,12 @@
+{
+  "name": "tar-gcs-sandbox",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.0.0",
+    "tar-gcs": "file:.."
+  }
+}
