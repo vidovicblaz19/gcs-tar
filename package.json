@@ -3,12 +3,12 @@
   "version": "1.0.0",
   "description": "Create tar archives from GCS objects using server-side compose — zero data transfer, near-zero CPU",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
   "exports": {
-    ".": "./src/index.js"
+    ".": "./dist/index.js"
   },
   "files": [
-    "src/"
+    "dist/"
   ],
   "license": "MIT",
   "author": "Blaž Vidovič <vidovicblaz19@gmail.com>",
@@ -35,14 +35,16 @@
     "@google-cloud/storage": "^7.0.0"
   },
   "scripts": {
+    "build": "esbuild src/index.js --bundle --minify --platform=node --format=esm --outfile=dist/index.js --external:@google-cloud/storage",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "test": "node --test",
     "test:unit": "node --test test/tar-unit.test.js",
     "test:integration": "node --test test/create-tar.test.js",
-    "prepublishOnly": "npm run typecheck && npm run test:unit"
+    "prepublishOnly": "npm run typecheck && npm run test:unit && npm run build"
   },
   "devDependencies": {
     "@google-cloud/storage": "^7.0.0",
+    "esbuild": "^0.28.1",
     "typescript": "^5.7.0"
   }
 }

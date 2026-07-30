@@ -8,11 +8,10 @@ Instead of downloading files to build a tar locally, the library uploads tiny 51
 import { Storage } from '@google-cloud/storage';
 import { createTar } from 'tar-gcs';
 
-const storage = new Storage();
+const bucket = new Storage().bucket('my-bucket');
 
 await createTar({
-  storage,
-  bucket: 'my-bucket',
+  bucket,
   files: [
     'photos/vacation/img001.jpg',
     'documents/report.pdf',
@@ -51,8 +50,7 @@ npm install tar-gcs @google-cloud/storage
 
 | Option | Type | Required | Default | Description |
 |--------|------|----------|---------|-------------|
-| `storage` | `Storage` | yes | — | GCS Storage instance |
-| `bucket` | `string` | yes | — | GCS bucket name |
+| `bucket` | `Bucket` | yes | — | GCS Bucket instance |
 | `files` | `(string \| TarFileSpec)[]` | yes | — | Object keys to include |
 | `targetKey` | `string` | yes | — | Destination key for the tar |
 | `workPrefix` | `string` | no | `"tmp/tar-gcs/"` | Temp work directory prefix |

@@ -23,7 +23,7 @@ function runToken(len = 6) {
 /**
  * @typedef {import('./config.js').TarGcsConfig} TarGcsConfig
  * @typedef {import('./config.js').ResolvedConfig} ResolvedConfig
- * @typedef {import('./gcs.js').GcsStorage} GcsStorage
+ * @typedef {import('./gcs.js').GcsBucket} GcsBucket
  * @typedef {import('./gcs.js').GcsObjectInfo} GcsObjectInfo
  */
 
@@ -92,7 +92,7 @@ async function cleanup(bucket, workBase) {
  * Uploads only small header parts — pads are pre-cached from
  * power-of-2 building blocks and reused across runs.
  *
- * @param {TarGcsConfig & { storage: GcsStorage }} opts
+ * @param {TarGcsConfig} opts
  * @returns {Promise<{ key: string, size: string, crc32c: string }>}
  *
  * @throws {TarGcsError}  on invalid config
@@ -101,7 +101,7 @@ async function cleanup(bucket, workBase) {
  */
 export async function createTar(opts) {
   const cfg = resolveConfig(opts);
-  const bucket = opts.storage.bucket(cfg.bucket);
+  const bucket = cfg.bucket;
   const token = runToken();
   const workBase = `${cfg.workPrefix}${token}/`;
 

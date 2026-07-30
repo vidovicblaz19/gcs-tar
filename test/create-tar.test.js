@@ -27,8 +27,7 @@ describe('createTar (integration)', () => {
 
   it('creates an empty tar when files array is empty', async () => {
     await createTar({
-      storage,
-      bucket: BUCKET,
+      bucket,
       files: [],
       targetKey: 'output-empty.tar',
       validation: false,
@@ -46,8 +45,7 @@ describe('createTar (integration)', () => {
     await upload(key, 'hello world\n');
 
     await createTar({
-      storage,
-      bucket: BUCKET,
+      bucket,
       files: [key],
       targetKey: 'output-hello.tar',
       validation: false,
@@ -84,8 +82,7 @@ describe('createTar (integration)', () => {
     await upload(keys[1], 'x');
 
     await createTar({
-      storage,
-      bucket: BUCKET,
+      bucket,
       files: keys,
       targetKey: 'output-multi.tar',
       validation: false,
@@ -127,8 +124,7 @@ describe('createTar (integration)', () => {
     await upload(key, 'hello world\n');
 
     const result = await createTar({
-      storage,
-      bucket: BUCKET,
+      bucket,
       files: [key],
       targetKey: 'output-meta.tar',
       validation: false,
@@ -138,5 +134,24 @@ describe('createTar (integration)', () => {
     assert.ok(typeof result.size === 'string');
     assert.ok(Number(result.size) > 0);
     assert.ok(typeof result.crc32c === 'string');
+  });
+
+  it('accepts a Bucket instance directly', async () => {
+    const key = 'hello.txt';
+    await upload(key, 'hello world\n');
+
+    const result = await createTar({
+      bucket,
+      files: [key],
+      targetKey: 'output-bucket-instance.tar',
+      validation: false,
+    });
+
+    assert.equal(result.key, 'output-bucket-instance.tar');
+    assert.ok(Number(result.size) > 0);
+
+    const [buf] = await bucket.file('output-bucket-instance.tar').download();
+    const name = buf.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
+    assert.equal(name, 'hello.txt');
   });
 });

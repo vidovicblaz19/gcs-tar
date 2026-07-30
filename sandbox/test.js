@@ -43,8 +43,7 @@ async function main() {
   console.log();
 
   const result = await createTar({
-    storage,
-    bucket: BUCKET,
+    bucket,
     files: FILES,
     targetKey: TARGET_KEY,
   });
