@@ -106,6 +106,37 @@ export function pad512(size) {
 export const PAD_SIZES = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
 
 /**
+ * Create a 512-byte GNU tar LongLink header (typeflag 'L') for
+ * filenames longer than 100 bytes. The body (pathname + NUL,
+ * padded to 512) must follow as a separate tar record.
+ *
+ * @param {string} path - the full file path (> 99 chars)
+ * @returns {Buffer}
+ */
+export function encodeLongLinkHeader(path) {
+  const buf = Buffer.alloc(512);
+
+  writeString(buf, 0, 100, '././@LongLink');
+  writeOctal(buf, 100, 8, 0);
+  writeOctal(buf, 108, 8, 0);
+  writeOctal(buf, 116, 8, 0);
+  writeOctal(buf, 124, 12, path.length + 1);
+  writeOctal(buf, 136, 12, 0);
+  buf.write('L', 156, 1, 'ascii');
+  writeString(buf, 257, 6, 'ustar');
+  buf.write('00', 263, 2, 'ascii');
+  writeString(buf, 265, 32, '');
+  writeString(buf, 297, 32, '');
+
+  let sum = 8 * 0x20;
+  for (let i = 0; i < 148; i++) sum += buf[i];
+  for (let i = 156; i < 512; i++) sum += buf[i];
+  writeOctal(buf, 148, 7, sum);
+
+  return buf;
+}
+
+/**
  * Decompose a number into power-of-2 components (descending).
  * Returns an empty array for 0.
  *
