@@ -1,5 +1,5 @@
 import { Storage } from '@google-cloud/storage';
-import { createTar } from 'tar-gcs';
+import { createTar } from 'gcs-tar';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -10,7 +10,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // CONFIG — edit these to match your bucket and the files you want to tar
 // ---------------------------------------------------------------------------
 const BUCKET = process.env.TAR_GCS_BUCKET || 'project-carrot-stag.firebasestorage.app';
-const TARGET_KEY = process.env.TAR_GCS_TARGET || `tar-gcs-sandbox-${Date.now()}.tar`;
+const TARGET_KEY = process.env.TAR_GCS_TARGET || `gcs-tar-sandbox-${Date.now()}.tar`;
 
 // List exact GCS object keys to include — any paths, any prefixes, no grouping required
 const FILES = [

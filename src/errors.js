@@ -1,5 +1,5 @@
 /**
- * Base error for tar-gcs internal failures (config, orchestration).
+ * Base error for gcs-tar internal failures (config, orchestration).
  * GCS API errors pass through unwrapped — the consumer owns the
  * @google-cloud/storage dependency and handles its errors directly.
  *

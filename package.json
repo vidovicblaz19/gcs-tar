@@ -1,5 +1,5 @@
 {
-  "name": "tar-gcs",
+  "name": "gcs-tar",
   "version": "1.0.0",
   "description": "Create tar archives from GCS objects using server-side compose — zero data transfer, near-zero CPU",
   "type": "module",
@@ -14,10 +14,10 @@
   "author": "Blaž Vidovič <vidovicblaz19@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vidovicblaz19/tar-gcs.git"
+    "url": "git+https://github.com/vidovicblaz19/gcs-tar.git"
   },
   "bugs": {
-    "url": "https://github.com/vidovicblaz19/tar-gcs/issues"
+    "url": "https://github.com/vidovicblaz19/gcs-tar/issues"
   },
   "keywords": [
     "gcs",

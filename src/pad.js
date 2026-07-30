@@ -10,7 +10,7 @@ import { uploadBuffer } from './gcs.js';
  * Skips any that already exist.
  *
  * @param {GcsBucket} bucket
- * @param {string} padPrefix - e.g., "tmp/tar-gcs-pad/"
+ * @param {string} padPrefix - e.g., "tmp/gcs-tar-pad/"
  * @param {object} [opts]
  * @param {boolean} [opts.validation] - Enable CRC32C integrity check on uploads
  * @returns {Promise<void>}
@@ -37,7 +37,7 @@ export async function ensureBasePads(bucket, padPrefix, opts) {
  * Returns an empty string if size is 0 (no padding needed).
  *
  * @param {GcsBucket} bucket
- * @param {string} padPrefix - e.g., "tmp/tar-gcs-pad/"
+ * @param {string} padPrefix - e.g., "tmp/gcs-tar-pad/"
  * @param {number} size - padding size (0–511)
  * @returns {Promise<string>} - object key of the pad, or "" if size 0
  */

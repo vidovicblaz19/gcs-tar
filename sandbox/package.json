@@ -1,5 +1,5 @@
 {
-  "name": "tar-gcs-sandbox",
+  "name": "gcs-tar-sandbox",
   "private": true,
   "type": "module",
   "scripts": {
@@ -7,6 +7,6 @@
   },
   "dependencies": {
     "@google-cloud/storage": "^7.0.0",
-    "tar-gcs": "file:.."
+    "gcs-tar": "file:.."
   }
 }

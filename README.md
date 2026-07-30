@@ -1,4 +1,4 @@
-# tar-gcs
+# gcs-tar
 
 Create tar archives from GCS objects using [server-side compose](https://cloud.google.com/storage/docs/composite-objects) — **zero data transfer, near-zero CPU**.
 
@@ -6,7 +6,7 @@ Instead of downloading files to build a tar locally, the library uploads tiny 51
 
 ```js
 import { Storage } from '@google-cloud/storage';
-import { createTar } from 'tar-gcs';
+import { createTar } from 'gcs-tar';
 
 const bucket = new Storage().bucket('my-bucket');
 
@@ -39,7 +39,7 @@ For each file, a 512B tar header is uploaded. Padding (0–511B) is assembled fr
 ## Install
 
 ```
-npm install tar-gcs @google-cloud/storage
+npm install gcs-tar @google-cloud/storage
 ```
 
 `@google-cloud/storage` is a peer dependency — you bring your own instance.
@@ -53,8 +53,8 @@ npm install tar-gcs @google-cloud/storage
 | `bucket` | `Bucket` | yes | — | GCS Bucket instance |
 | `files` | `(string \| TarFileSpec)[]` | yes | — | Object keys to include |
 | `targetKey` | `string` | yes | — | Destination key for the tar |
-| `workPrefix` | `string` | no | `"tmp/tar-gcs/"` | Temp work directory prefix |
-| `padPrefix` | `string` | no | `"tmp/tar-gcs-pad/"` | Pad object cache prefix |
+| `workPrefix` | `string` | no | `"tmp/gcs-tar/"` | Temp work directory prefix |
+| `padPrefix` | `string` | no | `"tmp/gcs-tar-pad/"` | Pad object cache prefix |
 | `validation` | `boolean` | no | `true` | CRC32C integrity check on uploads |
 | `lowMemory` | `boolean` | no | `false` | Process files page-by-page |
 

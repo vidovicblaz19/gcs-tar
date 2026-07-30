@@ -16,8 +16,8 @@ import { TarGcsError, ErrCode } from './errors.js';
  * @property {GcsBucket}            bucket      - GCS Bucket instance (required)
  * @property {(string|TarFileSpec)[]} files     - GCS object keys to include (required)
  * @property {string}               targetKey   - Destination key for the .tar file (required)
- * @property {string}               [workPrefix]- Shared work prefix (default "tmp/tar-gcs/")
- * @property {string}               [padPrefix] - Pad object prefix (derived: "tmp/tar-gcs-pad/")
+ * @property {string}               [workPrefix]- Shared work prefix (default "tmp/gcs-tar/")
+ * @property {string}               [padPrefix] - Pad object prefix (derived: "tmp/gcs-tar-pad/")
  * @property {boolean}              [lowMemory] - Process files in pages (default false)
  * @property {boolean}              [validation] - Enable CRC32C validation on uploads (default true)
  */
@@ -61,7 +61,7 @@ export function resolveConfig(userOpts) {
     );
   }
 
-  const workPrefix = (userOpts.workPrefix ?? 'tmp/tar-gcs/').replace(/\/?$/, '/');
+  const workPrefix = (userOpts.workPrefix ?? 'tmp/gcs-tar/').replace(/\/?$/, '/');
   const padPrefix = (userOpts.padPrefix ?? `${workPrefix.replace(/\/$/, '')}-pad/`).replace(/\/?$/, '/');
 
   return {
