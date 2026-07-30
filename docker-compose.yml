@@ -1,0 +1,6 @@
+services:
+  gcs:
+    image: fsouza/fake-gcs-server
+    command: ["-scheme", "http"]
+    ports:
+      - "4443:4443"
