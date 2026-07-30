@@ -1,8 +1,8 @@
 import { encodeHeader, pad512 } from './tar.js';
 import { resolveConfig } from './config.js';
 import {
-  listObjects,
-  listObjectsPaged,
+  resolveFiles,
+  resolveFilesPaged,
   uploadBuffer,
   composeAll,
 } from './gcs.js';
@@ -112,7 +112,7 @@ export async function createTar(opts) {
       return await createTarLowMem(bucket, cfg, workBase);
     }
 
-    const files = await listObjects(bucket, cfg.prefix);
+    const files = await resolveFiles(bucket, cfg.files);
 
     if (files.length === 0) {
       await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024), { validation: cfg.validation });
@@ -145,7 +145,7 @@ async function createTarLowMem(bucket, cfg, workBase) {
   let fileCount = 0;
 
   try {
-    for await (const page of listObjectsPaged(bucket, cfg.prefix)) {
+    for await (const page of resolveFilesPaged(bucket, cfg.files)) {
       fileCount += page.length;
 
       const sources = await processPage({ bucket, cfg, files: page, workBase });

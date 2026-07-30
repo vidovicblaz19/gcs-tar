@@ -14,63 +14,63 @@
  */
 
 /**
- * List all objects under a prefix. Handles pagination.
+ * @typedef {import('./config.js').TarFileSpec} TarFileSpec
+ */
+
+/**
+ * Resolve file keys / specs into full GcsObjectInfo by fetching
+ * metadata for any entries missing size or mtime.
  *
  * @param {GcsBucket} bucket
- * @param {string} prefix
+ * @param {(string|TarFileSpec)[]} entries
  * @returns {Promise<GcsObjectInfo[]>}
  */
-export async function listObjects(bucket, prefix) {
-  const [files] = await bucket.getFiles({
-    prefix,
-    autoPaginate: true,
-    maxResults: 1000,
-  });
-
-  return files.map((f) => ({
-    name: f.name,
-    size: Number(f.metadata.size ?? 0),
-    crc32c: f.metadata.crc32c,
-    md5Hash: f.metadata.md5Hash,
-    updated: new Date(f.metadata.updated ?? Date.now()),
-    contentType: f.metadata.contentType ?? undefined,
-  }));
+export async function resolveFiles(bucket, entries) {
+  return Promise.all(
+    entries.map(async (entry) => {
+      if (typeof entry === 'string') {
+        return resolveOne(bucket, entry);
+      }
+      if (entry.size != null) {
+        return {
+          name: entry.name,
+          size: entry.size,
+          updated: entry.mtime ?? new Date(),
+        };
+      }
+      return resolveOne(bucket, entry.name, entry.mtime);
+    }),
+  );
 }
 
 /**
- * List objects page by page. Yields each page as an array.
- * Use when total object count could exceed available memory.
+ * @param {GcsBucket} bucket
+ * @param {string} name
+ * @param {Date} [fallbackMtime]
+ * @returns {Promise<GcsObjectInfo>}
+ */
+async function resolveOne(bucket, name, fallbackMtime) {
+  const [metadata] = await bucket.file(name).getMetadata();
+  return {
+    name,
+    size: Number(metadata.size ?? 0),
+    updated: metadata.updated ? new Date(metadata.updated) : (fallbackMtime ?? new Date()),
+  };
+}
+
+/**
+ * Resolve files page by page for low-memory mode.
  *
  * @param {GcsBucket} bucket
- * @param {string} prefix
+ * @param {(string|TarFileSpec)[]} entries
  * @param {number} [pageSize]
  * @yields {Promise<GcsObjectInfo[]>}
  */
-export async function* listObjectsPaged(bucket, prefix, pageSize = 500) {
-  /** @type {string | undefined} */
-  let pageToken;
-
-  do {
-    /** @type {import('@google-cloud/storage').GetFilesOptions} */
-    const opts = {
-      prefix,
-      maxResults: pageSize,
-      autoPaginate: false,
-    };
-    if (pageToken) opts.pageToken = pageToken;
-
-    const [files, query] = await bucket.getFiles(opts);
-    pageToken = /** @type {string | undefined} */ (query?.pageToken);
-
-    yield files.map((f) => ({
-      name: f.name,
-      size: Number(f.metadata.size ?? 0),
-      crc32c: f.metadata.crc32c,
-      md5Hash: f.metadata.md5Hash,
-      updated: new Date(f.metadata.updated ?? Date.now()),
-      contentType: f.metadata.contentType ?? undefined,
-    }));
-  } while (pageToken);
+export async function* resolveFilesPaged(bucket, entries, pageSize = 500) {
+  for (let i = 0; i < entries.length; i += pageSize) {
+    const page = entries.slice(i, i + pageSize);
+    yield resolveFiles(bucket, page);
+  }
 }
 
 /**

@@ -7,17 +7,28 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // ---------------------------------------------------------------------------
-// CONFIG — edit these to match your bucket and prefix
+// CONFIG — edit these to match your bucket and the files you want to tar
 // ---------------------------------------------------------------------------
-const BUCKET = process.env.TAR_GCS_BUCKET || 'project-carrot-stag.appspot.com';
-const PREFIX = process.env.TAR_GCS_PREFIX || '';
+const BUCKET = process.env.TAR_GCS_BUCKET || 'project-carrot-stag.firebasestorage.app';
 const TARGET_KEY = process.env.TAR_GCS_TARGET || `tar-gcs-sandbox-${Date.now()}.tar`;
+
+// List exact GCS object keys to include — any paths, any prefixes, no grouping required
+const FILES = [
+  // 'path/to/file1.jpg',
+  // 'another/prefix/doc.pdf',
+  // 'completely/different/place/data.csv',
+];
 
 const credentialsPath = resolve(__dirname, 'project-carrot-stag-firebase.json');
 
 // ---------------------------------------------------------------------------
 
 async function main() {
+  if (FILES.length === 0) {
+    console.error('No files configured. Edit sandbox/test.js and add keys to the FILES array.');
+    process.exit(1);
+  }
+
   const credentials = JSON.parse(await readFile(credentialsPath, 'utf8'));
 
   const storage = new Storage({
@@ -27,26 +38,14 @@ async function main() {
 
   const bucket = storage.bucket(BUCKET);
 
-  // Show what's under the prefix (first 10 files)
-  console.log(`\nListing objects under prefix "${PREFIX || '(root)'}" in bucket "${BUCKET}"...`);
-  const [files] = await bucket.getFiles({ prefix: PREFIX, maxResults: 10 });
-  if (files.length === 0) {
-    console.log('  (no files found)');
-  } else {
-    for (const f of files) {
-      console.log(`  ${f.name}  (${f.metadata.size} bytes)`);
-    }
-    if (files.length === 10) {
-      console.log('  ... (showing first 10)');
-    }
-  }
-
-  console.log(`\nCreating tar "${TARGET_KEY}" from prefix "${PREFIX || '(root)'}"...\n`);
+  console.log(`\nCreating tar "${TARGET_KEY}" from ${FILES.length} file(s) in bucket "${BUCKET}"...`);
+  for (const f of FILES) console.log(`  ${f}`);
+  console.log();
 
   const result = await createTar({
     storage,
     bucket: BUCKET,
-    prefix: PREFIX,
+    files: FILES,
     targetKey: TARGET_KEY,
   });
 
@@ -55,12 +54,7 @@ async function main() {
   console.log('  size:   ', result.size, 'bytes');
   console.log('  crc32c: ', result.crc32c);
 
-  // Download and verify a few bytes
-  const [buf] = await bucket.file(TARGET_KEY).download();
-  console.log('  downloaded size:', buf.length, 'bytes');
-  console.log('  first 8 bytes (hex):', buf.subarray(0, 8).toString('hex'));
-
-  console.log('\nCleanup: delete the tar?');
+  console.log('\nDelete the tar when done:');
   console.log(`  gsutil rm gs://${BUCKET}/${TARGET_KEY}`);
 }
 
