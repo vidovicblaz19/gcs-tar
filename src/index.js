@@ -22,6 +22,7 @@ function runToken(len = 6) {
 
 /**
  * @typedef {import('./config.js').TarGcsConfig} TarGcsConfig
+ * @typedef {import('./config.js').ResolvedConfig} ResolvedConfig
  * @typedef {import('./gcs.js').GcsStorage} GcsStorage
  * @typedef {import('./gcs.js').GcsObjectInfo} GcsObjectInfo
  */
@@ -45,7 +46,7 @@ async function resultMeta(bucket, key) {
 /**
  * @param {object} opts
  * @param {import('./gcs.js').GcsBucket} opts.bucket
- * @param {TarGcsConfig} opts.cfg
+ * @param {ResolvedConfig} opts.cfg
  * @param {GcsObjectInfo[]} opts.files
  * @param {string} opts.workBase
  * @returns {Promise<string[]>} compose source keys for this page
@@ -134,7 +135,7 @@ export async function createTar(opts) {
  * page into an intermediate segment, then stitch segments together.
  *
  * @param {import('./gcs.js').GcsBucket} bucket
- * @param {TarGcsConfig} cfg
+ * @param {ResolvedConfig} cfg
  * @param {string} workBase
  * @returns {Promise<{ key: string, size: string, crc32c: string }>}
  */

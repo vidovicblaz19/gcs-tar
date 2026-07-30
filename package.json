@@ -18,9 +18,13 @@
     "@google-cloud/storage": "^7.0.0"
   },
   "scripts": {
-    "typecheck": "tsc -p jsconfig.json --noEmit"
+    "typecheck": "tsc -p jsconfig.json --noEmit",
+    "test": "node --test",
+    "test:unit": "node --test test/tar-unit.test.js",
+    "test:integration": "node --test test/create-tar.test.js"
   },
   "devDependencies": {
+    "@google-cloud/storage": "^7.0.0",
     "typescript": "^5.7.0"
   }
 }

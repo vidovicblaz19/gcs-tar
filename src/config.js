@@ -2,20 +2,30 @@ import { TarGcsError, ErrCode } from './errors.js';
 
 /**
  * @typedef {object} TarGcsConfig
- * @property {string}  bucket     - GCS bucket name (required)
- * @property {string}  prefix     - Object key prefix to include (default "")
- * @property {string}  targetKey  - Destination key for the .tar file (required)
- * @property {string}  workPrefix - Shared work prefix (default "tmp/tar-gcs/")
- * @property {string}  padPrefix  - Pad object prefix (derived: "tmp/tar-gcs-pad/")
- * @property {boolean} [lowMemory]- Process files in pages to limit memory (default false)
+ * @property {string}  bucket      - GCS bucket name (required)
+ * @property {string}  [prefix]    - Object key prefix (default "")
+ * @property {string}  targetKey   - Destination key for the .tar file (required)
+ * @property {string}  [workPrefix]- Shared work prefix (default "tmp/tar-gcs/")
+ * @property {string}  [padPrefix] - Pad object prefix (derived: "tmp/tar-gcs-pad/")
+ * @property {boolean} [lowMemory] - Process files in pages (default false)
+ */
+
+/**
+ * @typedef {object} ResolvedConfig
+ * @property {string}  bucket
+ * @property {string}  prefix
+ * @property {string}  targetKey
+ * @property {string}  workPrefix
+ * @property {string}  padPrefix
+ * @property {boolean} lowMemory
  */
 
 /**
  * Merge user options with defaults. Validates required fields.
  * padPrefix is derived from workPrefix by appending "-pad" unless overridden.
  *
- * @param {{ bucket?: string, targetKey?: string, prefix?: string, workPrefix?: string, padPrefix?: string, lowMemory?: boolean, storage?: unknown }} userOpts
- * @returns {TarGcsConfig}
+ * @param {TarGcsConfig & { storage?: unknown }} userOpts
+ * @returns {ResolvedConfig}
  * @throws {TarGcsError}
  */
 export function resolveConfig(userOpts) {
