@@ -79,11 +79,13 @@ export async function* listObjectsPaged(bucket, prefix, pageSize = 500) {
  * @param {GcsBucket} bucket
  * @param {string} key
  * @param {Buffer} buffer
+ * @param {object} [opts]
+ * @param {boolean} [opts.validation] - Enable CRC32C integrity check (default true)
  * @returns {Promise<void>}
  */
-export async function uploadBuffer(bucket, key, buffer) {
+export async function uploadBuffer(bucket, key, buffer, opts) {
   const file = bucket.file(key);
-  await file.save(buffer, { resumable: false });
+  await file.save(buffer, { resumable: false, validation: opts?.validation ?? true });
 }
 
 /**

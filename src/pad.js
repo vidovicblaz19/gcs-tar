@@ -11,9 +11,11 @@ import { uploadBuffer } from './gcs.js';
  *
  * @param {GcsBucket} bucket
  * @param {string} padPrefix - e.g., "tmp/tar-gcs-pad/"
+ * @param {object} [opts]
+ * @param {boolean} [opts.validation] - Enable CRC32C integrity check on uploads
  * @returns {Promise<void>}
  */
-export async function ensureBasePads(bucket, padPrefix) {
+export async function ensureBasePads(bucket, padPrefix, opts) {
   const [existing] = await bucket.getFiles({
     prefix: padPrefix,
     autoPaginate: true,
@@ -23,7 +25,7 @@ export async function ensureBasePads(bucket, padPrefix) {
   for (const sz of PAD_SIZES) {
     const key = `${padPrefix}${sz}`;
     if (!existingNames.has(key)) {
-      await uploadBuffer(bucket, key, Buffer.alloc(sz));
+      await uploadBuffer(bucket, key, Buffer.alloc(sz), opts);
     }
   }
 }

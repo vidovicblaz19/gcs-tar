@@ -16,6 +16,7 @@ export async function upload(name, content) {
   const file = storage.bucket(BUCKET).file(name);
   await file.save(typeof content === 'string' ? Buffer.from(content) : content, {
     resumable: false,
+    validation: false,
   });
 }
 

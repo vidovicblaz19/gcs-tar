@@ -32,6 +32,7 @@ describe('createTar (integration)', () => {
       bucket: BUCKET,
       prefix: 'nonexistent-prefix/',
       targetKey: 'output-empty.tar',
+      validation: false,
     });
 
     const [buf] = await bucket.file('output-empty.tar').download();
@@ -50,6 +51,7 @@ describe('createTar (integration)', () => {
       bucket: BUCKET,
       prefix: 'hello',
       targetKey: 'output-hello.tar',
+      validation: false,
     });
 
     const [buf] = await bucket.file('output-hello.tar').download();
@@ -89,6 +91,7 @@ describe('createTar (integration)', () => {
       bucket: BUCKET,
       prefix: 'hello',
       targetKey: 'output-multi.tar',
+      validation: false,
     });
 
     const [buf] = await bucket.file('output-multi.tar').download();
@@ -99,18 +102,22 @@ describe('createTar (integration)', () => {
     // Total: 3072
     assert.equal(buf.length, 3072);
 
+    // First header name at offset 0
+    const name1 = buf.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
+    assert.ok(name1 === 'hello.txt' || name1 === 'hello-small.txt');
+
     // First file content at 512
-    assert.equal(buf.subarray(512, 512 + 12).toString('utf8'), 'hello world\n');
+    const expected1 = name1 === 'hello.txt' ? 'hello world\n' : 'x';
+    assert.equal(buf.subarray(512, 512 + expected1.length).toString('utf8'), expected1);
 
     // Second header at 1024
     const name2 = buf.subarray(1024, 1024 + 100).toString('utf8').replace(/\0.*$/, '');
-    // Could be "hello-small.txt" or "hello.txt" depending on ordering
+    assert.ok(name2 !== name1);
     assert.ok(name2 === 'hello-small.txt' || name2 === 'hello.txt');
 
     // Second content at 1536 (1024 + 512)
-    // If hello.txt comes first, second is hello-small.txt (1 byte)
-    const content2 = buf.subarray(1536, 1536 + 1).toString('utf8');
-    assert.ok(content2 === 'x' || content2 === 'h');
+    const expected2 = name2 === 'hello.txt' ? 'hello world\n' : 'x';
+    assert.equal(buf.subarray(1536, 1536 + expected2.length).toString('utf8'), expected2);
 
     // End blocks
     for (let i = buf.length - 1024; i < buf.length; i++) {
@@ -126,6 +133,7 @@ describe('createTar (integration)', () => {
       bucket: BUCKET,
       prefix: 'hello',
       targetKey: 'output-meta.tar',
+      validation: false,
     });
 
     assert.equal(result.key, 'output-meta.tar');

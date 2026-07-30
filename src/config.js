@@ -8,6 +8,7 @@ import { TarGcsError, ErrCode } from './errors.js';
  * @property {string}  [workPrefix]- Shared work prefix (default "tmp/tar-gcs/")
  * @property {string}  [padPrefix] - Pad object prefix (derived: "tmp/tar-gcs-pad/")
  * @property {boolean} [lowMemory] - Process files in pages (default false)
+ * @property {boolean} [validation] - Enable CRC32C validation on uploads (default true)
  */
 
 /**
@@ -18,6 +19,7 @@ import { TarGcsError, ErrCode } from './errors.js';
  * @property {string}  workPrefix
  * @property {string}  padPrefix
  * @property {boolean} lowMemory
+ * @property {boolean} validation
  */
 
 /**
@@ -64,5 +66,6 @@ export function resolveConfig(userOpts) {
     workPrefix,
     padPrefix,
     lowMemory: userOpts.lowMemory ?? false,
+    validation: userOpts.validation ?? true,
   };
 }

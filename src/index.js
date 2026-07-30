@@ -58,7 +58,7 @@ async function processPage({ bucket, cfg, files, workBase }) {
   for (const f of files) {
     const hdrKey = `${workBase}headers/${f.name}`;
     const hdr = encodeHeader({ name: f.name, size: f.size, mtime: f.updated });
-    await uploadBuffer(bucket, hdrKey, hdr);
+    await uploadBuffer(bucket, hdrKey, hdr, { validation: cfg.validation });
     sources.push(hdrKey);
 
     sources.push(f.name);
@@ -106,7 +106,7 @@ export async function createTar(opts) {
   const workBase = `${cfg.workPrefix}${token}/`;
 
   try {
-    await ensureBasePads(bucket, cfg.padPrefix);
+    await ensureBasePads(bucket, cfg.padPrefix, { validation: cfg.validation });
 
     if (cfg.lowMemory) {
       return await createTarLowMem(bucket, cfg, workBase);
@@ -115,7 +115,7 @@ export async function createTar(opts) {
     const files = await listObjects(bucket, cfg.prefix);
 
     if (files.length === 0) {
-      await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024));
+      await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024), { validation: cfg.validation });
       return await resultMeta(bucket, cfg.targetKey);
     }
 
@@ -155,7 +155,7 @@ async function createTarLowMem(bucket, cfg, workBase) {
     }
 
     if (fileCount === 0) {
-      await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024));
+      await uploadBuffer(bucket, cfg.targetKey, Buffer.alloc(1024), { validation: cfg.validation });
       return await resultMeta(bucket, cfg.targetKey);
     }
 
