@@ -8,6 +8,7 @@ Instead of downloading files to build a tar locally, the library uploads tiny 51
 import { Storage } from '@google-cloud/storage';
 import { createTar } from 'tar-gcs';
 
+// Pass bucket as a string + storage instance to resolve it
 const storage = new Storage();
 
 await createTar({
@@ -18,6 +19,15 @@ await createTar({
     'documents/report.pdf',
     'data/export.csv',
   ],
+  targetKey: 'archive.tar',
+});
+
+// Or pass a Bucket instance directly — no `storage` needed
+const bucket = new Storage().bucket('my-bucket');
+
+await createTar({
+  bucket,
+  files: ['data/export.csv'],
   targetKey: 'archive.tar',
 });
 // => { key: 'archive.tar', size: '15204352', crc32c: 'abc123==' }
@@ -51,8 +61,8 @@ npm install tar-gcs @google-cloud/storage
 
 | Option | Type | Required | Default | Description |
 |--------|------|----------|---------|-------------|
-| `storage` | `Storage` | yes | — | GCS Storage instance |
-| `bucket` | `string` | yes | — | GCS bucket name |
+| `bucket` | `string \| Bucket` | yes | — | GCS bucket name or Bucket instance |
+| `storage` | `Storage` | when `bucket` is a string | — | GCS Storage instance |
 | `files` | `(string \| TarFileSpec)[]` | yes | — | Object keys to include |
 | `targetKey` | `string` | yes | — | Destination key for the tar |
 | `workPrefix` | `string` | no | `"tmp/tar-gcs/"` | Temp work directory prefix |

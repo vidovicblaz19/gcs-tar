@@ -139,4 +139,23 @@ describe('createTar (integration)', () => {
     assert.ok(Number(result.size) > 0);
     assert.ok(typeof result.crc32c === 'string');
   });
+
+  it('accepts a Bucket instance directly without storage', async () => {
+    const key = 'hello.txt';
+    await upload(key, 'hello world\n');
+
+    const result = await createTar({
+      bucket,
+      files: [key],
+      targetKey: 'output-bucket-instance.tar',
+      validation: false,
+    });
+
+    assert.equal(result.key, 'output-bucket-instance.tar');
+    assert.ok(Number(result.size) > 0);
+
+    const [buf] = await bucket.file('output-bucket-instance.tar').download();
+    const name = buf.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
+    assert.equal(name, 'hello.txt');
+  });
 });
