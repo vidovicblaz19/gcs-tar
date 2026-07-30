@@ -1,4 +1,4 @@
-import { encodeHeader, pad512 } from './tar.js';
+import { encodeHeader, encodeLongLinkHeader, pad512 } from './tar.js';
 import { resolveConfig } from './config.js';
 import {
   resolveFiles,
@@ -56,6 +56,20 @@ async function processPage({ bucket, cfg, files, workBase }) {
   const sources = [];
 
   for (const f of files) {
+    if (f.name.length >= 100) {
+      const llHdrKey = `${workBase}headers/${f.name}.longlink`;
+      const llHdr = encodeLongLinkHeader(f.name);
+      await uploadBuffer(bucket, llHdrKey, llHdr, { validation: cfg.validation });
+      sources.push(llHdrKey);
+
+      const llBodyLen = pad512(f.name.length + 1);
+      const llBody = Buffer.alloc(llBodyLen);
+      llBody.write(f.name + '\0', 0, 'utf8');
+      const llBodyKey = `${workBase}headers/${f.name}.longlink-body`;
+      await uploadBuffer(bucket, llBodyKey, llBody, { validation: cfg.validation });
+      sources.push(llBodyKey);
+    }
+
     const hdrKey = `${workBase}headers/${f.name}`;
     const hdr = encodeHeader({ name: f.name, size: f.size, mtime: f.updated });
     await uploadBuffer(bucket, hdrKey, hdr, { validation: cfg.validation });

@@ -154,4 +154,173 @@ describe('createTar (integration)', () => {
     const name = buf.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
     assert.equal(name, 'hello.txt');
   });
+
+  it('handles many small files (100 files, triggers merge tree)', { timeout: 120000 }, async () => {
+    const count = 100;
+    const keys = [];
+    const content = Buffer.from('x');
+
+    for (let i = 0; i < count; i++) {
+      const key = `sub/many/file-${String(i).padStart(3, '0')}.txt`;
+      keys.push(key);
+      await upload(key, content);
+    }
+
+    await createTar({
+      bucket,
+      files: keys,
+      targetKey: 'output-many.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-many.tar').download();
+
+    const expectedLen = count * 1024 + 1024;
+    assert.equal(buf.length, expectedLen);
+
+    for (let i = 0; i < count; i += 11) {
+      const off = i * 1024;
+      const name = buf.subarray(off, off + 100).toString('utf8').replace(/\0.*$/, '');
+      assert.equal(name, `sub/many/file-${String(i).padStart(3, '0')}.txt`);
+    }
+
+    for (let i = expectedLen - 1024; i < expectedLen; i++) {
+      assert.equal(buf[i], 0);
+    }
+  });
+
+  it('handles large files (5MB)', { timeout: 60000 }, async () => {
+    const size = 5 * 1024 * 1024;
+    const content = Buffer.alloc(size, 'A');
+    const key = 'sub/big/large-5mb.bin';
+
+    await upload(key, content);
+
+    await createTar({
+      bucket,
+      files: [key],
+      targetKey: 'output-big.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-big.tar').download();
+
+    const expectedLen = 512 + size + 1024;
+    assert.equal(buf.length, expectedLen);
+
+    const name = buf.subarray(0, 100).toString('utf8').replace(/\0.*$/, '');
+    assert.equal(name, 'sub/big/large-5mb.bin');
+
+    assert.equal(buf[512], 'A'.charCodeAt(0));
+    assert.equal(buf[512 + size - 1], 'A'.charCodeAt(0));
+
+    for (let i = expectedLen - 1024; i < expectedLen; i++) {
+      assert.equal(buf[i], 0);
+    }
+  });
+
+  it('handles long filenames (80, 99, and 100 chars)', async () => {
+    const prefix = 'sub/long/';
+    /**
+     * @param {number} len
+     */
+    const padChar = (len) => 'a'.repeat(len);
+    const ext = '.txt';
+
+    /**
+     * @param {number} totalLen
+     */
+    const makeName = (totalLen) => {
+      const bodyLen = totalLen - prefix.length - ext.length;
+      return prefix + padChar(bodyLen) + ext;
+    };
+
+    const name80 = makeName(80);
+    const name99 = makeName(99);
+    const name100 = makeName(100);
+
+    const content = Buffer.from('long-name-test');
+
+    await upload(name80, content);
+    await upload(name99, content);
+    await upload(name100, content);
+
+    await createTar({
+      bucket,
+      files: [name80, name99, name100],
+      targetKey: 'output-long.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-long.tar').download();
+
+    /**
+     * @param {number} off
+     */
+    const readName = (off) => buf.subarray(off, off + 100).toString('utf8').replace(/\0.*$/, '');
+
+    assert.equal(readName(0), name80);
+    assert.equal(readName(1024), name99);
+
+    // name100 has a LongLink entry: LL header (512) + LL body (512) = 1024B
+    // The file header is at offset 2048, but we read full name from LongLink
+    // The LongLink body starts at offset 2560 (2048 + 512 LL header) and
+    // contains the full pathname + NUL
+    const llBodyOff = 2048 + 512;
+    const longNameFromLL = buf.subarray(llBodyOff, llBodyOff + name100.length).toString('utf8');
+    assert.equal(longNameFromLL, name100);
+
+    // File header at 3072 has best-effort truncated name (up to 100B field)
+    const truncated100 = readName(3072);
+    assert.equal(truncated100, name100.substring(0, 100));
+
+    // 2 short-name entries (1024 each) + 1 long-name entry with LL (2048) + end (1024)
+    const expectedLen = 2 * 1024 + 2048 + 1024;
+    assert.equal(buf.length, expectedLen);
+
+    for (let i = expectedLen - 1024; i < expectedLen; i++) {
+      assert.equal(buf[i], 0);
+    }
+  });
+
+  it('handles very long filenames (200 chars)', async () => {
+    const prefix = 'sub/';
+    const body = 'z'.repeat(200 - prefix.length);
+    const name200 = prefix + body;
+
+    const content = Buffer.from('deep-path-content');
+
+    await upload(name200, content);
+
+    await createTar({
+      bucket,
+      files: [name200],
+      targetKey: 'output-verylong.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-verylong.tar').download();
+
+    // LongLink header (512) then body at offset 512
+    const llBodyOff = 512;
+    const nameFromLL = buf.subarray(llBodyOff, llBodyOff + name200.length).toString('utf8');
+    assert.equal(nameFromLL, name200);
+    assert.equal(buf[llBodyOff + name200.length], 0); // NUL terminator
+
+    // File header at offset 1024 has best-effort truncated name (up to 100B field)
+    const fileHdrName = buf.subarray(1024, 1024 + 100).toString('utf8').replace(/\0.*$/, '');
+    assert.equal(fileHdrName, name200.substring(0, 100));
+
+    // File content at offset 1536 (1024 + 512)
+    const fileContent = buf.subarray(1536, 1536 + content.length).toString('utf8');
+    assert.equal(fileContent, 'deep-path-content');
+
+    // LL header (512) + LL body (512) + file header (512) + padded content (512) + end (1024)
+    const expectedLen = 4 * 512 + 1024;
+    assert.equal(buf.length, expectedLen);
+
+    for (let i = expectedLen - 1024; i < expectedLen; i++) {
+      assert.equal(buf[i], 0);
+    }
+  });
 });
