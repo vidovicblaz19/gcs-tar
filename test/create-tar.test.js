@@ -10,7 +10,6 @@ describe('createTar (integration)', () => {
   before(async () => {
     bucket = storage.bucket(BUCKET);
     await bucket.create({ resumable: false }).catch(() => {});
-    // create a subdirectory object (trailing slash implies folder)
     await upload('sub/', '');
   });
 
@@ -26,38 +25,35 @@ describe('createTar (integration)', () => {
     }
   });
 
-  it('creates an empty tar when prefix has no files', async () => {
+  it('creates an empty tar when files array is empty', async () => {
     await createTar({
       storage,
       bucket: BUCKET,
-      prefix: 'nonexistent-prefix/',
+      files: [],
       targetKey: 'output-empty.tar',
       validation: false,
     });
 
     const [buf] = await bucket.file('output-empty.tar').download();
-    assert.equal(buf.length, 1024); // just end-of-archive blocks
-    // all bytes should be zero
+    assert.equal(buf.length, 1024);
     for (let i = 0; i < 1024; i++) {
       assert.equal(buf[i], 0);
     }
   });
 
   it('creates a tar from a single file', async () => {
-    await upload('hello.txt', 'hello world\n');
+    const key = 'hello.txt';
+    await upload(key, 'hello world\n');
 
     await createTar({
       storage,
       bucket: BUCKET,
-      prefix: 'hello',
+      files: [key],
       targetKey: 'output-hello.tar',
       validation: false,
     });
 
     const [buf] = await bucket.file('output-hello.tar').download();
-
-    // Header (512) + content (12) + padding to 512 (500) + end blocks (1024)
-    // Total: 512 + 12 + 500 + 1024 = 2048
     assert.equal(buf.length, 2048);
 
     // Check header checksum
@@ -83,13 +79,14 @@ describe('createTar (integration)', () => {
   });
 
   it('creates a tar from two files with different sizes', async () => {
-    await upload('hello.txt', 'hello world\n');
-    await upload('hello-small.txt', 'x');
+    const keys = ['hello.txt', 'hello-small.txt'];
+    await upload(keys[0], 'hello world\n');
+    await upload(keys[1], 'x');
 
     await createTar({
       storage,
       bucket: BUCKET,
-      prefix: 'hello',
+      files: keys,
       targetKey: 'output-multi.tar',
       validation: false,
     });
@@ -126,12 +123,13 @@ describe('createTar (integration)', () => {
   });
 
   it('returns metadata for the composed tar', async () => {
-    await upload('hello.txt', 'hello world\n');
+    const key = 'hello.txt';
+    await upload(key, 'hello world\n');
 
     const result = await createTar({
       storage,
       bucket: BUCKET,
-      prefix: 'hello',
+      files: [key],
       targetKey: 'output-meta.tar',
       validation: false,
     });
@@ -139,7 +137,6 @@ describe('createTar (integration)', () => {
     assert.equal(result.key, 'output-meta.tar');
     assert.ok(typeof result.size === 'string');
     assert.ok(Number(result.size) > 0);
-    // fake-gcs-server provides crc32c even for composed objects
     assert.ok(typeof result.crc32c === 'string');
   });
 });

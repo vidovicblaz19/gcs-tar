@@ -1,7 +1,7 @@
 {
   "name": "tar-gcs",
   "version": "1.0.0",
-  "description": "",
+  "description": "Create tar archives from GCS objects using server-side compose — zero data transfer, near-zero CPU",
   "type": "module",
   "main": "./src/index.js",
   "exports": {
@@ -11,6 +11,23 @@
     "src/"
   ],
   "license": "MIT",
+  "author": "Blaž Vidovič <vidovicblaz19@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vidovicblaz19/tar-gcs.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vidovicblaz19/tar-gcs/issues"
+  },
+  "keywords": [
+    "gcs",
+    "google-cloud-storage",
+    "tar",
+    "archive",
+    "compose",
+    "serverless",
+    "cloud-storage"
+  ],
   "engines": {
     "node": ">=18"
   },
@@ -21,7 +38,8 @@
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "test": "node --test",
     "test:unit": "node --test test/tar-unit.test.js",
-    "test:integration": "node --test test/create-tar.test.js"
+    "test:integration": "node --test test/create-tar.test.js",
+    "prepublishOnly": "npm run typecheck && npm run test:unit"
   },
   "devDependencies": {
     "@google-cloud/storage": "^7.0.0",
