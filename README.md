@@ -70,7 +70,18 @@ Each entry in `files` can be a plain string (metadata fetched automatically) or 
 
 `size` and `mtime` are optional — the library fetches them from GCS if omitted.
 
-### `TarGcsError`
+## Cleanup
+
+The library creates temporary objects under `workPrefix` (default `tmp/gcs-tar/`) — headers, intermediate merges — and cached zero-fill padding objects under `padPrefix` (default `tmp/gcs-tar-pad/sz/`). These are **not** auto-cleaned up.
+
+Recommended: set a **lifecycle rule** on your bucket to delete objects older than 24 hours:
+
+```
+tmp/gcs-tar/       → delete after 24 hours
+tmp/gcs-tar-pad/sz/ → delete after 24 hours
+```
+
+## `TarGcsError`
 
 Thrown for invalid config (missing `bucket`, `files`, or `targetKey`). Check `error.code` for `ErrCode.INVALID_CONFIG`.
 

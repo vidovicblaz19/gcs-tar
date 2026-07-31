@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+### Added
+- README: lifecycle/cleanup recommendations for `tmp/gcs-tar/` and `tmp/gcs-tar-pad/sz/` (24h TTL).
+
 ## 1.0.1
 
 ### Added
