@@ -1,6 +1,37 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { encodeHeader, pad512, decomposeBits, PAD_SIZES } from '../src/tar.js';
+import { resolveConfig } from '../src/config.js';
+import { TarGcsError, ErrCode } from '../src/errors.js';
+
+const GIB = 1024 ** 3;
+
+/**
+ * @param {Buffer} header
+ * @returns {number}
+ */
+function readSize(header) {
+  if (header[124] === 0x80) {
+    let size = 0;
+    for (let i = 125; i < 136; i++) size = size * 256 + header[i];
+    return size;
+  }
+
+  const octal = header.subarray(124, 136).toString('utf8').replace(/\0.*$/, '').trim();
+  return parseInt(octal, 8);
+}
+
+/**
+ * @param {Buffer} header
+ */
+function assertValidChecksum(header) {
+  let sum = 8 * 0x20;
+  for (let i = 0; i < 148; i++) sum += header[i];
+  for (let i = 156; i < 512; i++) sum += header[i];
+
+  const cksum = header.subarray(148, 156).toString('utf8').replace(/\0.*$/, '').trim();
+  assert.equal(sum, parseInt(cksum, 8));
+}
 
 describe('encodeHeader', () => {
   it('creates a 512-byte buffer', () => {
@@ -48,6 +79,66 @@ describe('encodeHeader', () => {
     const h = encodeHeader({ name: 'a', size: 0, mode: 0o755 });
     const mode = h.subarray(100, 108).toString('utf8').replace(/\0.*$/, '').trim();
     assert.equal(parseInt(mode, 8), 0o755);
+  });
+});
+
+describe('encodeHeader large files', () => {
+  it('uses octal below 8 GiB', () => {
+    const h = encodeHeader({ name: 'big', size: 8 * GIB - 1, mtime: new Date(0) });
+
+    assert.notEqual(h[124], 0x80);
+    assert.equal(readSize(h), 8 * GIB - 1);
+    assertValidChecksum(h);
+  });
+
+  it('uses GNU base-256 for entries of 8 GiB and above by default', () => {
+    for (const size of [8 * GIB, 9 * GIB, 5 * 1024 * GIB]) {
+      const h = encodeHeader({ name: 'big', size, mtime: new Date(0) });
+
+      assert.equal(h[124], 0x80);
+      assert.equal(readSize(h), size);
+      assertValidChecksum(h);
+    }
+  });
+
+  it('rejects large entries when largeFileSupport is disabled', () => {
+    assert.doesNotThrow(() =>
+      encodeHeader({ name: 'big', size: 8 * GIB - 1 }, { largeFileSupport: false }),
+    );
+    assert.throws(
+      () => encodeHeader({ name: 'big', size: 8 * GIB }, { largeFileSupport: false }),
+      (err) => err instanceof TarGcsError && err.code === ErrCode.FILE_TOO_LARGE,
+    );
+  });
+
+  it('rejects invalid sizes', () => {
+    for (const size of [-1, 1.5, Number.NaN]) {
+      assert.throws(
+        () => encodeHeader({ name: 'bad', size }),
+        (err) => err instanceof TarGcsError && err.code === ErrCode.INVALID_SIZE,
+      );
+    }
+  });
+});
+
+describe('resolveConfig largeFileSupport', () => {
+  it('defaults to true', () => {
+    const cfg = resolveConfig(
+      /** @type {any} */ ({ bucket: {}, files: [], targetKey: 'archive.tar' }),
+    );
+    assert.equal(cfg.largeFileSupport, true);
+  });
+
+  it('can be disabled', () => {
+    const cfg = resolveConfig(
+      /** @type {any} */ ({
+        bucket: {},
+        files: [],
+        targetKey: 'archive.tar',
+        largeFileSupport: false,
+      }),
+    );
+    assert.equal(cfg.largeFileSupport, false);
   });
 });
 

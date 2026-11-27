@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { createTar } from '../src/index.js';
+import { TarGcsError, ErrCode } from '../src/errors.js';
 
 class FakeFile {
   /**
@@ -27,7 +28,8 @@ class FakeFile {
 
   async getMetadata() {
     const data = this.bucket.objects.get(this.name);
-    if (!data) {
+    const size = this.bucket.sizes.get(this.name) ?? data?.length;
+    if (size == null) {
       const err = new Error(`Not found: ${this.name}`);
       // @ts-expect-error test fake
       err.code = 404;
@@ -35,7 +37,7 @@ class FakeFile {
     }
     return [{
       name: this.name,
-      size: String(data.length),
+      size: String(size),
       updated: this.bucket.updated,
       crc32c: '',
     }];
@@ -46,6 +48,8 @@ class FakeBucket {
   constructor() {
     /** @type {Map<string, Buffer>} */
     this.objects = new Map();
+    /** @type {Map<string, number>} */
+    this.sizes = new Map();
     /** @type {string[][]} */
     this.combineCalls = [];
     this.maxCombineSources = 0;
@@ -166,5 +170,23 @@ describe('createTar lowMemory', () => {
     assert.ok(archive);
     assert.equal(archive.length, 1024);
     assert.ok(archive.every((byte) => byte === 0));
+  });
+});
+
+describe('createTar largeFileSupport', () => {
+  it('rejects entries of 8 GiB or larger when disabled', async () => {
+    const bucket = new FakeBucket();
+    bucket.sizes.set('big.bin', 8 * 1024 ** 3);
+
+    await assert.rejects(
+      createTar({
+        bucket: /** @type {any} */ (bucket),
+        files: ['big.bin'],
+        targetKey: 'big.tar',
+        largeFileSupport: false,
+        validation: false,
+      }),
+      (err) => err instanceof TarGcsError && err.code === ErrCode.FILE_TOO_LARGE,
+    );
   });
 });

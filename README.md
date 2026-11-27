@@ -57,8 +57,11 @@ npm install gcs-tar @google-cloud/storage
 | `padPrefix` | `string` | no | `"tmp/gcs-tar-pad/"` | Pad object cache prefix |
 | `validation` | `boolean` | no | `true` | CRC32C integrity check on uploads |
 | `lowMemory` | `boolean` | no | `false` | Process files page-by-page |
+| `largeFileSupport` | `boolean` | no | `true` | GNU base-256 encoding for entries >= 8 GiB |
 
 With `lowMemory: true`, files are resolved and composed one page at a time. Each page is composed into an intermediate segment using the same merge tree as the normal path, then the segments are stitched together. This reduces metadata memory usage and keeps every compose request within GCS's 32-source limit.
+
+Tar's classic octal size field tops out just under 8 GiB per entry. With `largeFileSupport` enabled (default), entries of 8 GiB or larger use GNU base-256 encoding. GNU tar and bsdtar support this, but some strict or legacy tar readers may not. Set `largeFileSupport: false` to reject such entries with `ErrCode.FILE_TOO_LARGE` instead. This limit is per entry; total archive size is still bounded by GCS's 5 TiB object limit.
 
 Returns: `Promise<{ key: string, size: string, crc32c: string }>`
 
@@ -85,7 +88,7 @@ tmp/gcs-tar-pad/sz/ → delete after 24 hours
 
 ## `TarGcsError`
 
-Thrown for invalid config (missing `bucket`, `files`, or `targetKey`). Check `error.code` for `ErrCode.INVALID_CONFIG`.
+Thrown for invalid config (missing `bucket`, `files`, or `targetKey`), invalid entry sizes, and entries that exceed tar's octal size limit when `largeFileSupport` is disabled. Check `error.code` for `ErrCode.INVALID_CONFIG`, `ErrCode.INVALID_SIZE`, or `ErrCode.FILE_TOO_LARGE`.
 
 ## License
 
