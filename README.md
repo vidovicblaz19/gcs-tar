@@ -58,6 +58,8 @@ npm install gcs-tar @google-cloud/storage
 | `validation` | `boolean` | no | `true` | CRC32C integrity check on uploads |
 | `lowMemory` | `boolean` | no | `false` | Process files page-by-page |
 
+With `lowMemory: true`, files are resolved and composed one page at a time. Each page is composed into an intermediate segment using the same merge tree as the normal path, then the segments are stitched together. This reduces metadata memory usage and keeps every compose request within GCS's 32-source limit.
+
 Returns: `Promise<{ key: string, size: string, crc32c: string }>`
 
 #### File specs

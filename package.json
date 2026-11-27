@@ -1,6 +1,6 @@
 {
   "name": "gcs-tar",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Create tar archives from GCS objects using server-side compose — zero data transfer, near-zero CPU",
   "type": "module",
   "main": "./dist/index.js",
@@ -38,7 +38,7 @@
     "build": "esbuild src/index.js --bundle --minify --platform=node --format=esm --outfile=dist/index.js --external:@google-cloud/storage",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "test": "node --test",
-    "test:unit": "node --test test/tar-unit.test.js",
+    "test:unit": "node --test test/tar-unit.test.js test/low-memory-unit.test.js",
     "test:integration": "node --test test/create-tar.test.js",
     "prepublishOnly": "npm run typecheck && npm run test:unit && npm run build"
   },
