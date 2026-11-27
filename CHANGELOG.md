@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.3
+
+### Fixed
+- `pad512` overflowed above 2 GiB due to 32-bit bitwise arithmetic, producing negative or zero padding for large files. Padding now uses arithmetic rounding.
+
 ## 1.0.2
 
 ### Added

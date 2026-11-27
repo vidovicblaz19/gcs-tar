@@ -64,6 +64,17 @@ describe('pad512', () => {
     assert.equal(pad512(513), 1024);
     assert.equal(pad512(1000), 1024);
   });
+
+  it('handles sizes above the 32-bit boundary', () => {
+    const gib = 1024 ** 3;
+
+    assert.equal(pad512(2 * gib - 1), 2 * gib);
+    assert.equal(pad512(2 * gib), 2 * gib);
+    assert.equal(pad512(2 * gib + 1), 2 * gib + 512);
+    assert.equal(pad512(3 * gib), 3 * gib);
+    assert.equal(pad512(4 * gib), 4 * gib);
+    assert.equal(pad512(5 * 1024 * gib), 5 * 1024 * gib);
+  });
 });
 
 describe('PAD_SIZES', () => {

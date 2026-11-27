@@ -96,7 +96,8 @@ export function encodeHeader(entry) {
  * @returns {number}
  */
 export function pad512(size) {
-  return (size + 511) & ~511;
+  // Avoid bitwise ops here: they coerce to 32 bits and overflow above 2 GiB.
+  return Math.ceil(size / 512) * 512;
 }
 /**
  * Power-of-2 pad sizes used as building blocks. Any padding 0–511
