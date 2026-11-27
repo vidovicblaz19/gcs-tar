@@ -1,6 +1,6 @@
 {
   "name": "gcs-tar",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Create tar archives from GCS objects using server-side compose — zero data transfer, near-zero CPU",
   "type": "module",
   "main": "./dist/index.js",
