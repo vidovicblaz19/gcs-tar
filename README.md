@@ -92,10 +92,6 @@ tmp/gcs-tar-pad/sz/ → delete after 24 hours
 
 Thrown for invalid config (missing `bucket`, `files`, or `targetKey`), invalid entry sizes, and entries that exceed tar's octal size limit when `largeFileSupport` is disabled. Check `error.code` for `ErrCode.INVALID_CONFIG`, `ErrCode.INVALID_SIZE`, or `ErrCode.FILE_TOO_LARGE`.
 
-## Releasing
-
-See [RELEASING.md](./RELEASING.md). Publishing uses npm trusted publishing and staged approval; no `NPM_TOKEN` is stored in GitHub.
-
 ## License
 
 MIT
