@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+### Changed
+- Publishing now uses npm trusted publishing (OIDC) and staged publishing. GitHub Actions stages the release and a maintainer approves it with 2FA before it becomes installable.
+- The Publish workflow pins npm `11.19.1` and no longer requires an `NPM_TOKEN` secret.
+- Added `RELEASING.md` and linked it from the README.
+
 ## 1.1.1
 
 ### Changed
