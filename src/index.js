@@ -71,7 +71,10 @@ async function processPage({ bucket, cfg, files, workBase }) {
     }
 
     const hdrKey = `${workBase}headers/${f.name}`;
-    const hdr = encodeHeader({ name: f.name, size: f.size, mtime: f.updated });
+    const hdr = encodeHeader(
+      { name: f.name, size: f.size, mtime: f.updated },
+      { largeFileSupport: cfg.largeFileSupport },
+    );
     await uploadBuffer(bucket, hdrKey, hdr, { validation: cfg.validation });
     sources.push(hdrKey);
 

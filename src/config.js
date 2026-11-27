@@ -20,6 +20,7 @@ import { TarGcsError, ErrCode } from './errors.js';
  * @property {string}               [padPrefix] - Pad object prefix (derived: "tmp/gcs-tar-pad/")
  * @property {boolean}              [lowMemory] - Process files in pages (default false)
  * @property {boolean}              [validation] - Enable CRC32C validation on uploads (default true)
+ * @property {boolean}              [largeFileSupport] - Use GNU base-256 for entries >= 8 GiB (default true; requires a reader that supports the GNU extension)
  */
 
 /**
@@ -31,6 +32,7 @@ import { TarGcsError, ErrCode } from './errors.js';
  * @property {string}                  padPrefix
  * @property {boolean}                 lowMemory
  * @property {boolean}                 validation
+ * @property {boolean}                 largeFileSupport
  */
 
 /**
@@ -72,5 +74,6 @@ export function resolveConfig(userOpts) {
     padPrefix,
     lowMemory: userOpts.lowMemory ?? false,
     validation: userOpts.validation ?? true,
+    largeFileSupport: userOpts.largeFileSupport ?? true,
   };
 }

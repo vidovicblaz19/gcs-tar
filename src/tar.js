@@ -1,3 +1,8 @@
+import { TarGcsError, ErrCode } from './errors.js';
+
+/** Maximum value representable in an 11-digit octal tar field. */
+const MAX_OCTAL_SIZE = 8 ** 11 - 1;
+
 /**
  * @param {number} num
  * @param {number} size
@@ -17,6 +22,49 @@ function formatOctal(num, size) {
  */
 function writeOctal(buf, off, size, num) {
   buf.write(formatOctal(num, size), off, size, 'ascii');
+}
+
+/**
+ * Write a tar size field, using GNU base-256 encoding when the value
+ * exceeds the octal range and large-file support is enabled.
+ *
+ * @param {Buffer} buf
+ * @param {number} off
+ * @param {number} fieldSize
+ * @param {number} num
+ * @param {boolean} largeFileSupport
+ */
+function writeSizeField(buf, off, fieldSize, num, largeFileSupport) {
+  if (!Number.isSafeInteger(num) || num < 0) {
+    throw new TarGcsError(`Invalid tar entry size: ${num}.`, {
+      code: ErrCode.INVALID_SIZE,
+      detail: { size: num },
+    });
+  }
+
+  if (num <= MAX_OCTAL_SIZE) {
+    writeOctal(buf, off, fieldSize, num);
+    return;
+  }
+
+  if (!largeFileSupport) {
+    throw new TarGcsError(
+      `Tar entry size ${num} exceeds the ${MAX_OCTAL_SIZE}-byte octal field limit. Enable largeFileSupport to use GNU base-256 encoding.`,
+      {
+        code: ErrCode.FILE_TOO_LARGE,
+        detail: { size: num, maxOctalSize: MAX_OCTAL_SIZE },
+      },
+    );
+  }
+
+  // GNU base-256: the high bit marks a binary value, remaining bytes are big-endian.
+  buf.fill(0, off, off + fieldSize);
+  buf[off] = 0x80;
+  let remaining = num;
+  for (let i = off + fieldSize - 1; i > off; i--) {
+    buf[i] = remaining % 256;
+    remaining = Math.floor(remaining / 256);
+  }
 }
 
 /**
@@ -43,12 +91,18 @@ function writeString(buf, off, size, str) {
  */
 
 /**
+ * @typedef {object} EncodeHeaderOptions
+ * @property {boolean} [largeFileSupport] - Use GNU base-256 for entries >= 8 GiB (default true; requires a reader that supports the GNU extension)
+ */
+
+/**
  * Create a 512-byte tar header block for a file entry.
  *
  * @param {TarEntry} entry
+ * @param {EncodeHeaderOptions} [opts]
  * @returns {Buffer}
  */
-export function encodeHeader(entry) {
+export function encodeHeader(entry, opts) {
   const buf = Buffer.alloc(512);
 
   const name = entry.name || '';
@@ -65,7 +119,7 @@ export function encodeHeader(entry) {
   writeOctal(buf, 100, 8, mode);
   writeOctal(buf, 108, 8, uid);
   writeOctal(buf, 116, 8, gid);
-  writeOctal(buf, 124, 12, size);
+  writeSizeField(buf, 124, 12, size, opts?.largeFileSupport ?? true);
 
   const mtimeSec = Math.floor(mtime.getTime() / 1000);
   writeOctal(buf, 136, 12, mtimeSec);

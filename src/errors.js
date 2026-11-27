@@ -26,4 +26,6 @@ export class TarGcsError extends Error {
 export const ErrCode = {
   INVALID_CONFIG: 'ERR_INVALID_CONFIG',
   COMPOSE_ALL: 'ERR_COMPOSE_ALL',
+  FILE_TOO_LARGE: 'ERR_FILE_TOO_LARGE',
+  INVALID_SIZE: 'ERR_INVALID_SIZE',
 };

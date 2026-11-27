@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+### Added
+- `largeFileSupport` option (default `true`) to encode tar entries of 8 GiB or larger using GNU base-256 size fields. This is supported by GNU tar and bsdtar; set `largeFileSupport: false` to reject oversized entries with `ErrCode.FILE_TOO_LARGE` instead.
+
+### Fixed
+- Entries of 8 GiB or larger were silently encoded with a truncated octal size field, producing invalid archives.
+
 ## 1.0.4
 
 ### Fixed
