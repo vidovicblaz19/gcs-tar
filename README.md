@@ -44,6 +44,8 @@ npm install gcs-tar @google-cloud/storage
 
 `@google-cloud/storage` is a peer dependency — you bring your own instance.
 
+Node.js 18 or newer is required. CI tests Node 18, 20, 22, 24, and 26.
+
 ## API
 
 ### `createTar(opts)`

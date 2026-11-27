@@ -6,47 +6,72 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   typecheck:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npm run typecheck
 
   unit:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
-        node-version: ['18', '20', '22']
+        node-version: ['18', '20', '22', '24', '26']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
       - run: npm run test:unit
 
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Check committed dist is up to date
+        run: git diff --exit-code -- dist/
+
   integration:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - name: Start GCS emulator
-        run: docker run -d -p 4443:4443 --name gcs-emulator fsouza/fake-gcs-server -scheme http
+        run: docker run -d -p 4443:4443 --name gcs-emulator fsouza/fake-gcs-server:1.56.1 -scheme http
       - name: Wait for emulator
         run: until curl -sf http://localhost:4443/storage/v1/b; do sleep 1; done
         timeout-minutes: 1
       - run: npm run test:integration
       - name: Stop emulator
         if: always()
-        run: docker rm -f gcs-emulator
+        run: docker rm -f gcs-emulator || true

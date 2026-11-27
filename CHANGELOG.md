@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+### Changed
+- CI now tests Node.js 18, 20, 22, 24, and 26, verifies the committed `dist/` bundle, and uses `actions/checkout@v7` / `actions/setup-node@v7`.
+- Publish workflow now runs integration tests, checks the release tag against `package.json`, and publishes GitHub prereleases under the npm `next` dist-tag.
+- Pinned the fake GCS emulator image to `1.56.1`.
+
 ## 1.1.0
 
 ### Added
