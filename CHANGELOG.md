@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+### Fixed
+- `lowMemory` mode now composes each page through the merge-tree helper instead of sending all page sources to a single compose request. Pages that produced more than 32 sources exceeded GCS's compose limit and failed.
+
 ## 1.0.3
 
 ### Fixed

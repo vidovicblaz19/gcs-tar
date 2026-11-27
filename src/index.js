@@ -163,8 +163,9 @@ async function createTarLowMem(bucket, cfg, workBase) {
       fileCount += page.length;
 
       const sources = await processPage({ bucket, cfg, files: page, workBase });
-      const segKey = `${workBase}seg-${String(intermediates.length).padStart(5, '0')}`;
-      await bucket.combine(sources, segKey);
+      const segIndex = String(intermediates.length).padStart(5, '0');
+      const segKey = `${workBase}seg-${segIndex}`;
+      await composeAll(bucket, sources, segKey, `${workBase}seg-int-${segIndex}/`);
       intermediates.push(segKey);
     }
 
