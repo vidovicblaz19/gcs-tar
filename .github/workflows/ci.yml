@@ -67,7 +67,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Start GCS emulator
-        run: docker run -d -p 4443:4443 --name gcs-emulator fsouza/fake-gcs-server:1.56.1 -scheme http
+        run: docker run -d -p 4443:4443 --name gcs-emulator fsouza/fake-gcs-server:1.56.1 -scheme http -backend memory
       - name: Wait for emulator
         run: until curl -sf http://localhost:4443/storage/v1/b; do sleep 1; done
         timeout-minutes: 1

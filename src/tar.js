@@ -170,12 +170,13 @@ export const PAD_SIZES = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512];
  */
 export function encodeLongLinkHeader(path) {
   const buf = Buffer.alloc(512);
+  const size = Buffer.byteLength(path, 'utf8') + 1;
 
   writeString(buf, 0, 100, '././@LongLink');
   writeOctal(buf, 100, 8, 0);
   writeOctal(buf, 108, 8, 0);
   writeOctal(buf, 116, 8, 0);
-  writeOctal(buf, 124, 12, path.length + 1);
+  writeSizeField(buf, 124, 12, size, true);
   writeOctal(buf, 136, 12, 0);
   buf.write('L', 156, 1, 'ascii');
   writeString(buf, 257, 6, 'ustar');
