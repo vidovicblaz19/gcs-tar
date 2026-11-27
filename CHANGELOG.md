@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.4
+
+### Added
+- README: documented GCS compose constraints (same bucket and storage class), required IAM permissions, source immutability, the 5 TiB archive limit, and versioning/soft-delete cost notes.
+
 ## 1.1.3
 
 ### Fixed

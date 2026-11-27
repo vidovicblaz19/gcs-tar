@@ -77,6 +77,29 @@ Each entry in `files` can be a plain string (metadata fetched automatically) or 
 
 `size` and `mtime` are optional — the library fetches them from GCS if omitted.
 
+## Operational limits
+
+`createTar` relies on the GCS compose API, which imposes constraints beyond this library:
+
+- **Same bucket:** all files must be in the bucket passed as `bucket`.
+- **Same storage class:** all source objects must use the same storage class. GCS compose rejects mixed storage classes.
+- **Temporary object class:** headers and pads are uploaded using the bucket's default storage class. If the sources use a different class, compose will fail. Use a bucket whose default class matches the sources, or keep sources in the bucket default class.
+- **Non-Standard classes:** composing Nearline, Coldline, or Archive objects can incur retrieval and early-deletion charges, and temporary objects inherit the same class. GCS recommends Standard storage for compose operations.
+- **Maximum size:** the final composed tar is limited to 5 TiB, GCS's maximum object size.
+- **Source immutability:** do not overwrite or delete source objects while `createTar` is running. Headers are based on metadata fetched before compose; source generations are not currently pinned, so changing a source can produce an invalid archive.
+- **Versioning and soft delete:** cleanup is best-effort. With Object Versioning or soft delete enabled, deleted temporary objects may become noncurrent or soft-deleted and still incur storage costs. Keep lifecycle rules on `workPrefix` and `padPrefix`; see [Cleanup](#cleanup).
+
+### Permissions
+
+The caller needs:
+
+- `storage.objects.get` on source objects
+- `storage.objects.create` on the bucket for headers, pads, and the target
+- `storage.objects.delete` for temporary-object cleanup and overwriting an existing target
+- `storage.objects.list` for pad discovery
+
+A role that grants these permissions, such as `roles/storage.objectUser`, is sufficient.
+
 ## Cleanup
 
 The library creates temporary objects under `workPrefix` (default `tmp/gcs-tar/`) — headers, intermediate merges — and cached zero-fill padding objects under `padPrefix` (default `tmp/gcs-tar-pad/sz/`). These are **not** auto-cleaned up.
