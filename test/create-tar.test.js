@@ -2,6 +2,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { storage, BUCKET, upload } from './setup.js';
 import { createTar } from '../src/index.js';
+import { pad512 } from '../src/tar.js';
 
 describe('createTar (integration)', () => {
   /** @type {import('@google-cloud/storage').Bucket} */
@@ -322,5 +323,109 @@ describe('createTar (integration)', () => {
     for (let i = expectedLen - 1024; i < expectedLen; i++) {
       assert.equal(buf[i], 0);
     }
+  });
+
+  it('handles multibyte filenames by UTF-8 byte length', async () => {
+    const prefix = 'sub/multibyte/';
+    const name = `${prefix}${'é'.repeat(60)}.txt`;
+    const nameBytes = Buffer.byteLength(name, 'utf8');
+    const content = Buffer.from('multibyte-name');
+
+    assert.ok(nameBytes > 100);
+
+    await upload(name, content);
+
+    await createTar({
+      bucket,
+      files: [name],
+      targetKey: 'output-multibyte.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-multibyte.tar').download();
+
+    // LongLink header (512) then body at offset 512.
+    const llBodyOff = 512;
+    const nameFromLL = buf.subarray(llBodyOff, llBodyOff + nameBytes).toString('utf8');
+    assert.equal(nameFromLL, name);
+    assert.equal(buf[llBodyOff + nameBytes], 0); // NUL terminator
+
+    // The regular header at 1024 has a best-effort truncated name.
+    const fileHdrName = buf.subarray(1024, 1124).toString('utf8').replace(/\0.*$/, '');
+    assert.ok(name.startsWith(fileHdrName));
+    assert.ok(Buffer.byteLength(fileHdrName, 'utf8') <= 100);
+
+    // File content at 1536 (1024 + 512).
+    const fileContent = buf.subarray(1536, 1536 + content.length).toString('utf8');
+    assert.equal(fileContent, 'multibyte-name');
+
+    assert.equal(buf.length, 4 * 512 + 1024);
+  });
+
+  it('handles very long filenames near the GCS object-name limit', async () => {
+    const prefix = 'sub/';
+    const name = prefix + 'q'.repeat(1000 - prefix.length);
+    const content = Buffer.from('limit-name');
+
+    assert.equal(Buffer.byteLength(name, 'utf8'), 1000);
+
+    await upload(name, content);
+
+    await createTar({
+      bucket,
+      files: [name],
+      targetKey: 'output-name-limit.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-name-limit.tar').download();
+
+    const llBodyOff = 512;
+    assert.equal(buf.subarray(llBodyOff, llBodyOff + 1000).toString('utf8'), name);
+    assert.equal(buf[llBodyOff + 1000], 0);
+
+    // A 1000-byte name plus NUL occupies three 512-byte LongLink body blocks.
+    const llBodyLen = pad512(1000 + 1);
+    const fileHeaderOff = llBodyOff + llBodyLen;
+    const fileContent = buf
+      .subarray(fileHeaderOff + 512, fileHeaderOff + 512 + content.length)
+      .toString('utf8');
+    assert.equal(fileContent, 'limit-name');
+
+    assert.equal(buf.length, 512 + llBodyLen + 512 + 512 + 1024);
+  });
+
+  it('keeps distinct headers for duplicate names', async () => {
+    const key = 'hello-duplicate.txt';
+    const content = Buffer.from('duplicate');
+    const firstMtime = new Date('2001-01-01T00:00:00Z');
+    const secondMtime = new Date('2002-01-01T00:00:00Z');
+
+    await upload(key, content);
+
+    await createTar({
+      bucket,
+      files: [
+        { name: key, size: content.length, mtime: firstMtime },
+        { name: key, size: content.length, mtime: secondMtime },
+      ],
+      targetKey: 'output-duplicate.tar',
+      validation: false,
+    });
+
+    const [buf] = await bucket.file('output-duplicate.tar').download();
+
+    /**
+     * @param {number} off
+     * @returns {number}
+     */
+    const readMtime = (off) => {
+      const raw = buf.subarray(off + 136, off + 148).toString('utf8').replace(/\0.*$/, '').trim();
+      return parseInt(raw, 8);
+    };
+
+    assert.equal(readMtime(0), Math.floor(firstMtime.getTime() / 1000));
+    assert.equal(readMtime(1024), Math.floor(secondMtime.getTime() / 1000));
+    assert.equal(buf.length, 3 * 1024);
   });
 });

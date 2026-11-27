@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.3
+
+### Fixed
+- Long filenames are now measured by UTF-8 byte length, so multibyte names of 100 bytes or more correctly use GNU LongLink records.
+- Temporary header object keys now use per-entry indexes instead of the source filename, avoiding GCS object-name limits for very long names and collisions when the same name appears twice.
+
 ## 1.1.2
 
 ### Changed

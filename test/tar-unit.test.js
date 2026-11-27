@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeHeader, pad512, decomposeBits, PAD_SIZES } from '../src/tar.js';
+import {
+  encodeHeader,
+  encodeLongLinkHeader,
+  pad512,
+  decomposeBits,
+  PAD_SIZES,
+} from '../src/tar.js';
 import { resolveConfig } from '../src/config.js';
 import { TarGcsError, ErrCode } from '../src/errors.js';
 
@@ -118,6 +124,17 @@ describe('encodeHeader large files', () => {
         (err) => err instanceof TarGcsError && err.code === ErrCode.INVALID_SIZE,
       );
     }
+  });
+});
+
+describe('encodeLongLinkHeader', () => {
+  it('uses the UTF-8 byte length for the body size', () => {
+    const path = 'é'.repeat(60);
+    const h = encodeLongLinkHeader(path);
+
+    assert.equal(h[156], 'L'.charCodeAt(0));
+    assert.equal(readSize(h), Buffer.byteLength(path, 'utf8') + 1);
+    assertValidChecksum(h);
   });
 });
 

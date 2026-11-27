@@ -49,28 +49,33 @@ async function resultMeta(bucket, key) {
  * @param {ResolvedConfig} opts.cfg
  * @param {GcsObjectInfo[]} opts.files
  * @param {string} opts.workBase
+ * @param {number} [opts.startIndex]
  * @returns {Promise<string[]>} compose source keys for this page
  */
-async function processPage({ bucket, cfg, files, workBase }) {
+async function processPage({ bucket, cfg, files, workBase, startIndex = 0 }) {
   /** @type {string[]} */
   const sources = [];
 
-  for (const f of files) {
-    if (f.name.length >= 100) {
-      const llHdrKey = `${workBase}headers/${f.name}.longlink`;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    const nameBytes = Buffer.byteLength(f.name, 'utf8');
+    const keyBase = String(startIndex + i).padStart(6, '0');
+
+    if (nameBytes >= 100) {
+      const llHdrKey = `${workBase}headers/${keyBase}.longlink`;
       const llHdr = encodeLongLinkHeader(f.name);
       await uploadBuffer(bucket, llHdrKey, llHdr, { validation: cfg.validation });
       sources.push(llHdrKey);
 
-      const llBodyLen = pad512(f.name.length + 1);
+      const llBodyLen = pad512(nameBytes + 1);
       const llBody = Buffer.alloc(llBodyLen);
       llBody.write(f.name + '\0', 0, 'utf8');
-      const llBodyKey = `${workBase}headers/${f.name}.longlink-body`;
+      const llBodyKey = `${workBase}headers/${keyBase}.longlink-body`;
       await uploadBuffer(bucket, llBodyKey, llBody, { validation: cfg.validation });
       sources.push(llBodyKey);
     }
 
-    const hdrKey = `${workBase}headers/${f.name}`;
+    const hdrKey = `${workBase}headers/${keyBase}`;
     const hdr = encodeHeader(
       { name: f.name, size: f.size, mtime: f.updated },
       { largeFileSupport: cfg.largeFileSupport },
@@ -163,9 +168,15 @@ async function createTarLowMem(bucket, cfg, workBase) {
 
   try {
     for await (const page of resolveFilesPaged(bucket, cfg.files)) {
+      const sources = await processPage({
+        bucket,
+        cfg,
+        files: page,
+        workBase,
+        startIndex: fileCount,
+      });
       fileCount += page.length;
 
-      const sources = await processPage({ bucket, cfg, files: page, workBase });
       const segIndex = String(intermediates.length).padStart(5, '0');
       const segKey = `${workBase}seg-${segIndex}`;
       await composeAll(bucket, sources, segKey, `${workBase}seg-int-${segIndex}/`);
