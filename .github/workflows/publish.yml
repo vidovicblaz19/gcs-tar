@@ -76,6 +76,9 @@ jobs:
           node-version-file: .nvmrc
           registry-url: 'https://registry.npmjs.org'
           cache: npm
+      - name: Use npm with staged-publishing support
+        run: npm install -g npm@11.19.1
+      - run: npm --version
       - run: npm ci
       - name: Verify release tag matches package version
         env:
@@ -86,8 +89,24 @@ jobs:
             echo "::error::Release tag '$RELEASE_TAG' does not match package.json version '$VERSION'."
             exit 1
           fi
-      - name: Publish to npm
-        run: npm publish --provenance --access public --tag "$NPM_DIST_TAG"
+      - run: npm run build
+      - name: Check committed dist is up to date
+        run: git diff --exit-code -- dist/
+      - name: Check package contents
+        run: npm pack --dry-run
+      - name: Stage package on npm
+        run: npm stage publish --provenance --access public --tag "$NPM_DIST_TAG"
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_DIST_TAG: ${{ github.event.release.prerelease && 'next' || 'latest' }}
+      - name: Add approval instructions to summary
+        if: success()
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          {
+            echo "### npm staging complete"
+            echo ""
+            echo "Staged \`gcs-tar@$VERSION\` for the \`${{ github.event.release.prerelease && 'next' || 'latest' }}\` dist-tag."
+            echo ""
+            echo "A maintainer must approve it with 2FA from the npm Staged Packages tab:"
+            echo "https://www.npmjs.com/package/gcs-tar"
+          } >> "$GITHUB_STEP_SUMMARY"
